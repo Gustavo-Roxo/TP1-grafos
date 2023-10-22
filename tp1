@@ -1,12 +1,5 @@
 import numpy as np
 
-class Grafo():
-    def __init__(self, tipo_do_grafo, txt):
-        if tipo_do_grafo == "matriz":
-            self.grafo = Matriz(txt)
-        if tipo_do_grafo == "lista":
-            self.grafo = Lista(txt)
-
 class Matriz():
     def __init__(self, txt):
         arquivo = open(txt, 'r')
