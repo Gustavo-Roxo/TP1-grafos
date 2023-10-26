@@ -1,0 +1,474 @@
+import numpy as np
+import heapdict
+import time 
+
+class Matriz():
+    def __init__(self, txt):
+        arquivo = open(txt, 'r')
+        self.vertices_ = int(arquivo.readline())
+        self.arestas_ = 0
+        self.matriz_ = np.zeros([self.vertices_,self.vertices_], dtype = int)
+        for linha in arquivo:
+            self.matriz_[int(linha.split()[0])-1][int(linha.split()[1])-1] = 1
+            self.matriz_[int(linha.split()[1])-1][int(linha.split()[0])-1] = 1
+            self.arestas_ = self.arestas_ + 1
+        arquivo.close()
+
+    def vertices(self):
+        return self.vertices_
+
+    def arestas(self):
+        return self.arestas_
+    
+    def grau_max(self):
+        adicao = np.sum(self.matriz_, axis=0)
+        grau_max = np.argmax(adicao)
+        return adicao[grau_max]
+    
+    def grau_min(self):
+        adicao = np.sum(self.matriz_, axis=0)
+        grau_min = np.argmin(adicao)
+        return adicao[grau_min]
+    
+    def grau_medio(self):
+        adicao = np.sum(self.matriz_, axis=0)
+        adicao_ = np.sum(adicao, axis=0)
+        grau_medio = adicao_/self.vertices_
+        return grau_medio
+    
+    def grau_mediano(self):
+        adicao = np.sum(self.matriz_, axis=0)
+        grau_mediano = np.median(adicao)
+        return int(grau_mediano)
+    
+    def bfs(self,origem,arquivo=None,imprimir=0):
+        v_marcados = np.zeros(self.vertices_ , dtype=int)
+        v_nivel = np.array([-1] * self.vertices_, dtype=int)
+        v_pais = np.array([-1] * self.vertices_, dtype=int)
+        q=[origem]
+        v_marcados[origem-1] = 1
+        v_pais[origem-1] = 0
+        v_nivel[origem-1] = 0
+        while q != []:
+            pai = q.pop(0)
+            vizinhos = []
+            linha = self.matriz_[pai - 1]
+            vizinho = 1
+            for i in linha:
+                if i == 1:
+                    vizinhos.append(vizinho)
+                vizinho = vizinho + 1
+            for w in vizinhos:
+                if v_marcados[w-1] == 0:
+                    v_marcados[w-1] = 1
+                    v_pais[w-1] = pai
+                    v_nivel[w-1] = v_nivel[pai-1] + 1
+                    q.append(w)
+        
+        if imprimir == 1:
+            self.imprimir_busca(arquivo, v_nivel, v_pais)
+        
+        return [v_pais, v_nivel]
+    
+    def dfs(self, origem, arquivo=None, imprimir=0):
+        v_marcados = np.zeros(self.vertices_ , dtype=int)
+        v_nivel = np.array([-1] * self.vertices_, dtype=int)
+        v_pais = np.array([-1] * self.vertices_, dtype=int)
+        q=[origem]
+        v_pais[origem-1] = 0
+        v_nivel[origem-1] = 0
+        while q != []:
+            pai = q.pop()
+            if v_marcados[pai-1] == 0:
+                v_marcados[pai-1] = 1
+                vizinhos = []
+                linha = self.matriz_[pai - 1]
+                vizinho = 1
+                for i in linha:
+                    if i == 1:
+                        vizinhos.append(vizinho)
+                    vizinho = vizinho + 1
+                for w in reversed(vizinhos):
+                    q.append(w)
+                    if v_marcados[w-1] == 0:
+                        v_pais[w-1] = pai
+                        v_nivel[w-1] = v_nivel[pai-1] + 1
+
+        if imprimir == 1:
+            self.imprimir_busca(arquivo, v_nivel, v_pais)
+        
+        return [v_pais, v_nivel]
+    
+    def imprimir_busca(self, arquivo, v_nivel, v_pais):
+        arquivo_ = open(arquivo, "w", encoding = "utf-8")
+        impressao = ""
+        for v in range(self.vertices_):
+            impressao = impressao + f"Vértice: {v+1} / Nível: {v_nivel[v]} / Pai: {v_pais[v]}\n"
+        impressao = impressao + f"Vetor dos níveis: {v_nivel} / Vetor dos pais: {v_pais}"
+        arquivo_.write(f"{impressao}")
+
+    def distancia(self, origem, destino):
+        v_nivel=self.bfs(origem)[1]
+        return v_nivel[destino-1]
+    
+    def componentes_conexas(self, arquivo):
+        componentes_conexas = []
+        v_pais = np.array([-1] * self.vertices_, dtype=int)
+        v_pais[0] = 0
+        for i in range(1, self.vertices_ + 1):
+            if v_pais[i-1] == -1:
+                q = [i]
+                v_marcados = np.zeros(self.vertices_, dtype = int)
+                while q != []:
+                    pai = q.pop()
+                    if v_marcados[pai-1] == 0:
+                        v_marcados[pai-1] = 1
+                        vizinhos = []
+                        linha = self.matriz_[pai - 1]
+                        vizinho = 1
+                        for i in linha:
+                            if i == 1:
+                                vizinhos.append(vizinho)
+                            vizinho = vizinho + 1
+                        for w in reversed(vizinhos):
+                            q.append(w)
+                            if v_marcados[w-1] == 0:
+                                v_pais[w-1] = pai
+                componentes_conexas.append(v_marcados)
+
+        self.imprimir_componentes(arquivo, componentes_conexas)
+
+    def imprimir_componentes(self, arquivo, componentes_conexas):
+        arquivo_ = open(arquivo, "w", encoding = "utf-8")
+        arquivo_.write(f"Número de componentes conexas: {len(componentes_conexas)}\n")
+        q = []
+        for componentes in componentes_conexas:
+            v_vertices = []
+            for i in range(len(componentes)):
+                if componentes[i] == 1:
+                    v_vertices.append(i + 1)
+            q.append(v_vertices)
+        q = sorted(q, key = lambda x: len(x), reverse = True)
+        for i in q:
+            arquivo_.writelines(f'Tamanho da componente conexa: {len(i)} / Vértices: {i}\n')
+        arquivo_.close()
+
+class Lista_Vizinhos():
+    def __init__(self):
+        self.head = None
+        self.tamanho = 0
+    
+    def add(self, vizinho):
+        vizinho.next = self.head
+        self.head = vizinho
+        self.tamanho = self.tamanho + 1
+
+class Vizinho():
+    def __init__(self, vizinho:int, peso:float):
+        self.vizinho = vizinho
+        self.next = None
+        self.peso = peso
+
+    def __repr__(self):
+        return str(self.peso)
+    
+class Lista():
+    def __init__(self, txt, peso:bool):
+        arquivo = open(txt, 'r')
+        self.vertices_ = int(arquivo.readline())
+        self.arestas_ = 0
+        self.vetor_ = []
+        self.negativo_= False
+        self.peso_ = peso
+        for vertice in range(self.vertices_):
+            self.vetor_.append(Lista_Vizinhos())
+        if self.peso_ == True:
+            for linha in arquivo:
+                peso_aresta = float(linha.split()[2])
+
+                if peso_aresta < 0:
+                    self.negativo_ = True
+
+                self.vetor_[int(linha.split()[0])-1].add(Vizinho(int(linha.split()[1]), peso_aresta))
+                self.vetor_[int(linha.split()[1])-1].add(Vizinho(int(linha.split()[0]), peso_aresta))
+                self.arestas_ += 1
+                
+        else:
+            for linha in arquivo:
+                self.vetor_[int(linha.split()[0])-1].add(Vizinho(int(linha.split()[1])))
+                self.vetor_[int(linha.split()[1])-1].add(Vizinho(int(linha.split()[0])))
+                self.arestas_ = self.arestas_ + 1
+        arquivo.close
+
+    def vertices(self):
+        return self.vertices_
+    
+    def arestas(self):
+        return self.arestas_
+    
+    def graus(self):
+        graus = np.zeros(self.vertices_, dtype=int)
+        vertice = 0
+        for lista in self.vetor_:
+            graus[vertice] = lista.tamanho
+            vertice = vertice + 1
+        return graus
+    
+    def grau_max(self):
+        graus = self.graus()
+        return graus.max()
+    
+    def grau_min(self):
+        graus = self.graus()
+        return graus.min()
+    
+    def grau_medio(self):
+        graus = self.graus()
+        return graus.mean()
+    
+    def grau_mediano(self):
+        graus = self.graus()
+        mediana = np.median(graus, axis=0)
+        return int(mediana)
+    
+    def bfs(self, origem, arquivo=None, imprimir=0):
+        v_marcados = np.zeros(self.vertices_, dtype=int)
+        v_nivel = np.array([-1] * self.vertices_, dtype=int)
+        v_pais = np.array([-1] * self.vertices_, dtype=int)
+        q = [origem]
+        v_marcados[origem-1] = 1
+        v_pais[origem-1] = 0
+        v_nivel[origem - 1] = 0
+        while q != []:
+            pai = q.pop(0)
+            lista_vertices = self.vetor_[pai-1]
+            next_vizinho = lista_vertices.head
+            while next_vizinho != None:
+                w = next_vizinho.vizinho
+                if v_marcados[w-1] == 0:
+                    v_marcados[w-1] = 1
+                    v_pais[w-1] = pai
+                    v_nivel[w-1] = v_nivel[pai-1] + 1
+                    q.append(w)
+                next_vizinho = next_vizinho.next
+
+        if imprimir == 1:
+            self.imprimir_busca(arquivo, v_nivel, v_pais)
+        
+        return [v_pais, v_nivel]
+    
+    def dfs(self, origem, arquivo=None, imprimir=0):
+        v_marcados = np.zeros(self.vertices_, dtype=int)
+        v_nivel = np.array([-1] * self.vertices_, dtype=int)
+        v_pais = np.array([-1] * self.vertices_, dtype=int)
+        q = [origem]
+        v_pais[origem-1] = 0
+        v_nivel[origem - 1] = 0
+        while q != []:
+            pai = q.pop()
+            if v_marcados[pai-1] == 0:
+                v_marcados[pai-1] = 1
+                lista_vertices = self.vetor_[pai-1]
+                next_vizinho = lista_vertices.head
+                while next_vizinho != None:
+                    w = next_vizinho.vizinho
+                    q.append(w)
+                    if v_marcados[w-1] == 0:
+                        v_pais[w-1] = pai
+                        v_nivel[w-1] = v_nivel[pai-1] + 1
+                    next_vizinho = next_vizinho.next
+
+        if imprimir == 1:
+            self.imprimir_busca(arquivo, v_nivel, v_pais)
+        
+        return [v_pais, v_nivel]
+    
+    def imprimir_busca(self, arquivo, v_nivel, v_pais):
+        arquivo_ = open(arquivo, 'w', encoding='utf-8')
+        impressao = ''
+        for i in range(self.vertices_):
+            impressao = impressao + f'Vértice: {i+1} / Nível: {v_nivel[i]} / Pai: {v_pais[i]}\n'
+        impressao = impressao + f"Vetor dos níveis: {v_nivel} / Vetor dos pais: {v_pais}"
+        arquivo_.write(f"{impressao}")
+        arquivo_.close()
+
+    def distancia(self, origem, destino):
+        v_nivel = self.bfs(origem)[1]
+        return v_nivel[destino-1]
+    
+    def diametro(self):
+        if self.vertices_ < 500:
+            diametro = 0
+            for linha in range(self.vertices_):
+                v_nivel = self.bfs(linha+1)[1]
+                maior = np.max(v_nivel)
+                if maior > diametro:
+                    diametro = maior
+
+    def componentes_conexas(self, arquivo):
+        componentes_conexas = []
+        v_pais = np.array([-1] * self.vertices_, dtype=int)
+        v_pais[0] = 0
+        for i in range(1, self.vertices_ +1):
+            if v_pais[i-1] == -1:
+                q = [i]
+                v_marcados = np.zeros(self.vertices_, dtype=int)
+                while q != []:
+                    pai = q.pop()
+                    if v_marcados[pai-1] == 0:
+                        v_marcados[pai-1] = 1
+                        lista_vertices = self.vetor_[pai-1]
+                        next_vizinho = lista_vertices.head
+                        while next_vizinho != None:
+                            w = next_vizinho.vizinho
+                            q.append(w)
+                            if v_marcados[w-1] == 0:
+                                v_pais[w-1] = pai
+                            next_vizinho = next_vizinho.next
+                componentes_conexas.append(v_marcados)
+
+        self.imprimir_componentes(arquivo, componentes_conexas)
+        return componentes_conexas
+    
+    def imprimir_componentes(self, arquivo, componentes_conexas):
+        arquivo_ = open(arquivo, 'w', encoding='utf-8')
+        arquivo_.write(f'Número de componentes conexas: {len(componentes_conexas)}\n')
+        q = []
+        for componente in componentes_conexas:
+            lista_vertices =[]
+            for i in range(len(componente)):
+                if componente[i] == 1:
+                    lista_vertices.append(i+1)
+            q.append(lista_vertices)
+        q = sorted(q, key = lambda x: len(x), reverse=True)
+        for i in q:
+            arquivo_.writelines(f'Tamanho da componente: {len(i)} / Vértices: {i}\n')
+        arquivo_.close()
+
+    def dijkstra(self, origem):
+        matriz = []
+        for i in range(self.vertices()):
+            matriz.append([np.inf, i+1, 0])
+
+        pais = np.array([-1] * self.vertices_, dtype = int)
+        matriz[origem-1][0] = 0
+        fila = self.cria_fila(matriz)
+        while fila != []:
+            min = self.get_min(fila)
+            if min == None:
+                break
+            matriz[min - 1][2] = 1
+            next_vizinho = self.vetor_[min-1].head
+            while next_vizinho != None:
+                vertice_atual = next_vizinho.vizinho
+                peso_atual = next_vizinho.peso
+                if matriz[vertice_atual-1][0] > matriz[min-1][0] + peso_atual: 
+                    matriz[vertice_atual-1][0] = matriz[min-1][0] + peso_atual
+                    pais[vertice_atual-1] = min
+                    fila = self.cria_fila(matriz)
+                next_vizinho = next_vizinho.next
+        
+        dist = self.get_dist(matriz)
+        return (dist, pais)
+
+    def cria_fila(self,matriz):
+        fila = sorted(matriz, key = lambda x: x[0])  
+        return fila
+
+    def get_min(self,fila):
+        for i in fila:
+            if i[2] == 0:
+                return i[1]
+
+    def get_dist(self,matriz):
+        dist = []
+        for i in matriz:
+            dist.append(i[0])
+
+        return dist
+    
+    def dijkstra_heap(self, origem) -> tuple:
+        dist = np.array([np.inf] * self.vertices())
+        pais = np.array([-1] * self.vertices_, dtype = int)
+        vertices = self.vertices_
+        dist[origem-1] = 0
+        menor = 0
+        heap = heapdict.heapdict()
+        heap[origem] = 0 
+        while menor != vertices:
+            if len(heap.heap) == 0:
+                break
+            min = heap.popitem()[0] - 1
+            if min == np.inf:
+                break
+            menor += 1
+            next_vizinho = self.vetor_[min].head
+            while next_vizinho != None:
+                vertice_atual = next_vizinho.vizinho
+                peso_atual = next_vizinho.peso
+                if dist[vertice_atual-1] > dist[min] + peso_atual:
+                    dist[vertice_atual-1] = dist[min] + peso_atual
+                    heap[vertice_atual] = dist[min] + peso_atual
+                    pais[vertice_atual-1] = min + 1
+                next_vizinho = next_vizinho.next
+
+        return (dist, pais)
+    
+    def caminho_min(self, origem:int, destino:int) -> list:
+        if self.peso_ == False:
+            pais = self.bfs(origem, None, 0)[0]
+            if pais[destino - 1] == -1:
+                return "Sem caminho mínimo" 
+            else:
+                caminho = [destino]
+                atual = destino
+                print(pais)
+                while atual != destino:
+                    atual = pais[atual-1]
+                    caminho.append(atual)
+                caminho.reverse()
+                return caminho
+    
+        elif self.peso_ == True and self.negativo_ == False:
+            pais = self.dijkstra_heap(origem)[1]
+            if pais[destino - 1] == -1:
+                return "Sem caminho mínimo"
+            else:
+                caminho = [destino]
+                atual = destino
+                print(pais)
+                while atual != origem:
+                    atual = pais[atual-1]
+                    caminho.append(atual)
+                caminho.reverse()
+                return caminho
+
+        elif self.negativo_ == True:
+            caminho = "Peso negativo no grafo"
+            return caminho
+    
+    def dist_heap(self, origem:int, destino:int) -> float:
+        if self.peso_ == False:
+            return self.distancia(origem, destino)
+    
+        elif self.peso_ == True and self.negativo_ == False:
+            dist = self.dijkstra_heap(origem)[0]
+            dist = dist[destino - 1]
+
+        elif self.negativo_ == True:
+            dist = "Peso negativo no grafo"
+
+        return dist
+
+    def dist_vetor(self, origem:int, destino:int) -> float:
+        if self.peso_ == False:
+            return self.distancia(origem, destino)
+    
+        elif self.peso_== True and self.negativo_ == False:
+            dist = self.dijkstra(origem)[0]
+            dist_ = dist[destino - 1]
+
+        elif self.negativo_ == True:
+            dist_ = "Peso negativo no grafo"
+
+        return dist_
